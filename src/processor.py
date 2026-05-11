@@ -13,17 +13,19 @@ def clean_and_feature_engineer(input_path, output_path):
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
     
     # 3. Module 4: Feature Engineering
-    df['month'] = df['date'].dt.month_name()
+    # Use .dt.month for numeric sorting (1, 2, 3...)
+    df['month'] = df['date'].dt.month 
+    
+    # Use .dt.month_name() for the dashboard labels (January, February...)
+    df['month_name'] = df['date'].dt.month_name() 
+    
     df['day_of_week'] = df['date'].dt.day_name()
     df['is_weekend'] = df['date'].dt.weekday >= 5 
     
     # Burn Rate: Cumulative spending
     df = df.sort_values('date')
-    df['cumulative_spent'] = df.groupby('month')['amount'].cumsum()
-    
-    # Savings Feature: (Monthly Income - Cumulative Spent)
-    # This is only possible with the separate income column!
-    df['remaining_budget'] = df['income'] - df['cumulative_spent']
+    # Group by 'month_name' so the cumulative sum resets each month
+    df['cumulative_spent'] = df.groupby('month_name')['amount'].cumsum()
 
     # Save
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
