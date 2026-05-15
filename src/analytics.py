@@ -73,23 +73,57 @@ def calculate_financial_health_score(metrics, monthly_income, anomalies):
     
     return round(final_score, 1), label
 
-def get_monthly_summary(df):
+def get_monthly_summary(df, monthly_income_override=None, savings_goal_pct=20.0):
     """
-    Bridge function to provide simple totals for the dashboard metrics.
+    Final bridge function that gathers ALL metrics for the dashboard.
     """
-    total_spent = df['amount'].sum()
-    total_income = df['income'].iloc[0] if not df.empty else 0
+    if df is None or df.empty:
+        total_spent = 0.0
+        total_income = float(monthly_income_override or 0)
+        savings = total_income
+        return {
+            "total_spent": total_spent,
+            "total_income": total_income,
+            "savings": savings,
+            "health_score": 0.0,
+            "health_label": "Needs Attention",
+            "category_shares": {},
+            "growth": pd.DataFrame(),
+            "weekend_factor": {},
+            "target_savings": total_income * (savings_goal_pct / 100),
+            "savings_gap": savings - (total_income * (savings_goal_pct / 100)),
+            "savings_rate": 0.0,
+            "goal_progress_pct": 0.0
+        }
+
+    total_spent = float(df['amount'].sum())
+    base_income = float(df['income'].iloc[0]) if 'income' in df.columns else 0.0
+    total_income = float(monthly_income_override) if monthly_income_override is not None else base_income
     savings = total_income - total_spent
     
-    # Calculate advanced metrics for the health score
+    # 1. Get ALL advanced metrics (growth, share, weekend_factor)
     adv_metrics = calculate_advanced_metrics(df)
-    # We'll pass empty anomalies for now just to get the score running
-    health_score, label = calculate_financial_health_score(adv_metrics, total_income, [])
     
+    # 2. Calculate the health score
+    health_score, label = calculate_financial_health_score(adv_metrics, total_income, [])
+
+    target_savings = total_income * (savings_goal_pct / 100)
+    savings_gap = savings - target_savings
+    savings_rate = (savings / total_income * 100) if total_income > 0 else 0.0
+    goal_progress_pct = (savings / target_savings * 100) if target_savings > 0 else 0.0
+    
+    # 3. Return a unified dictionary with everything the dashboard needs
     return {
         "total_spent": total_spent,
         "total_income": total_income,
         "savings": savings,
         "health_score": health_score,
-        "health_label": label
+        "health_label": label,
+        "category_shares": adv_metrics['share'],
+        "growth": adv_metrics['growth'],          # FIXED: Required for insights
+        "weekend_factor": adv_metrics['weekend_factor'], # FIXED: Required for insights
+        "target_savings": target_savings,
+        "savings_gap": savings_gap,
+        "savings_rate": savings_rate,
+        "goal_progress_pct": goal_progress_pct
     }

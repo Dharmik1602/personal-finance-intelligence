@@ -4,7 +4,28 @@ import os
 def clean_and_feature_engineer(input_path, output_path):
     df = pd.read_csv(input_path)
     df.columns = [col.lower() for col in df.columns]
-    
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    if df.empty:
+        # Same schema the Streamlit app expects after a normal run (no demo rows bundled in raw).
+        empty = pd.DataFrame(
+            columns=[
+                "date",
+                "amount",
+                "category",
+                "payment_mode",
+                "description",
+                "income",
+                "month",
+                "month_name",
+                "day_of_week",
+                "is_weekend",
+                "cumulative_spent",
+            ]
+        )
+        empty.to_csv(output_path, index=False)
+        return
+
     # 1. Date Fix (the root of the first error)
     df['date'] = pd.to_datetime(df['date'], dayfirst=True)
     
@@ -22,13 +43,12 @@ def clean_and_feature_engineer(input_path, output_path):
     df['day_of_week'] = df['date'].dt.day_name()
     df['is_weekend'] = df['date'].dt.weekday >= 5 
     
-    # Burn Rate: Cumulative spending
-    df = df.sort_values('date')
-    # Group by 'month_name' so the cumulative sum resets each month
-    df['cumulative_spent'] = df.groupby('month_name')['amount'].cumsum()
+    # Burn Rate: cumulative spending resets each calendar month (year-aware; month_name alone is not)
+    df = df.sort_values("date")
+    _period = df["date"].dt.to_period("M")
+    df["cumulative_spent"] = df.groupby(_period, sort=False)["amount"].cumsum()
 
     # Save
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, index=False)
     print(f"✅ Root fix applied! Processed data saved with 'income' column.")
 

@@ -2,6 +2,7 @@
 import pandas as pd
 import random
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # Configuration
 start_date = datetime(2025, 1, 1)
@@ -30,4 +31,8 @@ for i in range(num_days):
 
 # New Column Schema
 df = pd.DataFrame(data, columns=['date', 'amount', 'category', 'payment_mode', 'description', 'income'])
-df.to_csv('data/raw/personal_expenses.csv', index=False)
+# Synthetic demo for notebooks / formula checks — not the Streamlit app raw ledger.
+_ROOT = Path(__file__).resolve().parents[2]
+_out = _ROOT / "data" / "samples" / "personal_expenses_generated_demo.csv"
+_out.parent.mkdir(parents=True, exist_ok=True)
+df.to_csv(_out, index=False)
