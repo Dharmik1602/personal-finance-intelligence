@@ -48,9 +48,9 @@ def load_data(uid: int) -> pd.DataFrame:
 
 # Processor still works — it just gets a DataFrame instead of reading a CSV
 from src.processor import clean_and_feature_engineer
-from src.analytics import compute_monthly_summary
-from src.insights import generate_insights
-from src.recommender import generate_recommendations
+from src.analytics import get_monthly_summary
+from src.insights import generate_automated_insights
+from src.recommender import get_recommendations
 
 raw_df = load_data(user_id)
 
@@ -99,18 +99,27 @@ with tab_reco:
         months     = sorted(processed_df["month_name"].unique(), reverse=True)
         chosen     = st.selectbox("Select Month", months)
         month_df   = processed_df[processed_df["month_name"] == chosen]
-        summary    = compute_monthly_summary(
+        summary    = get_monthly_summary(
                          month_df,
-                         income=goals["monthly_salary"],
-                         savings_target_pct=goals["savings_pct"],
+                         monthly_income_override=goals["monthly_salary"],
+                         savings_goal_pct=goals["savings_pct"],
                      )
-        insights   = generate_insights(summary)
-        recs       = generate_recommendations(summary)
+        
+        # Generate insights and recommendations
+        try:
+            insights   = generate_automated_insights(summary)
+        except:
+            insights = []
+        
+        try:
+            recs       = get_recommendations(summary)
+        except:
+            recs = []
 
         # ── Metrics row ────────────────────────────────────────────────────
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Total Spent",   f"₹{summary.get('total_spent', 0):,.0f}")
-        col2.metric("Income",        f"₹{summary.get('income', 0):,.0f}")
+        col2.metric("Income",        f"₹{summary.get('total_income', 0):,.0f}")
         col3.metric("Saved",         f"₹{summary.get('savings', 0):,.0f}")
         col4.metric("Health Score",  f"{summary.get('health_score', 0):.0f}/100")
 
@@ -119,23 +128,29 @@ with tab_reco:
         col_l, col_r = st.columns(2)
         with col_l:
             st.subheader("💡 Insights")
-            for insight in insights:
-                st.write(f"• {insight}")
+            if insights:
+                for insight in insights:
+                    st.write(f"• {insight}")
+            else:
+                st.info("No insights available yet.")
         with col_r:
             st.subheader("🔧 Recommendations")
-            for rec in recs:
-                st.write(f"• {rec}")
+            if recs:
+                for rec in recs:
+                    st.write(f"• {rec}")
+            else:
+                st.info("No recommendations available yet.")
 
         # ── Category breakdown chart ────────────────────────────────────────
         st.divider()
         st.subheader("Spending by Category")
-        cat_data = (
-            month_df.groupby("category")["amount"]
-            .sum()
-            .sort_values(ascending=False)
-            .reset_index()
-        )
-        st.bar_chart(cat_data.set_index("category")["amount"])
+        cat_data_dict = summary.get("category_shares", {})
+        if cat_data_dict:
+            cat_data = pd.DataFrame(list(cat_data_dict.items()), columns=["category", "amount"])
+            cat_data = cat_data.sort_values("amount", ascending=False)
+            st.bar_chart(cat_data.set_index("category")["amount"])
+        else:
+            st.info("No category data available.")
 
 
 # ── Tab 3: Daily Log ──────────────────────────────────────────────────────────
