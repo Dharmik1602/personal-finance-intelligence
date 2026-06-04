@@ -48,7 +48,6 @@ _PLOT_PANEL_BORDER = "#4a7c99"
 _PLOT_HOVERLABEL = dict(
     bgcolor=_PLOT_PANEL_BG,
     bordercolor=_PLOT_PANEL_BORDER,
-    borderwidth=2,
     align="left",
     font=dict(color="#ffffff", size=13, family="Arial, sans-serif"),
     namelength=-1,  # Show full text in hover
@@ -56,7 +55,6 @@ _PLOT_HOVERLABEL = dict(
 _PLOT_LEGEND = dict(
     bgcolor=_PLOT_PANEL_BG,
     bordercolor=_PLOT_PANEL_BORDER,
-    borderwidth=2,
     font=dict(color="#e8f0f8", size=11, family="Arial, sans-serif"),
     tracegroupgap=8,
     x=0.02,
