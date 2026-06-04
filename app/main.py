@@ -1,27 +1,22 @@
 """
 main.py — Personal Finance Intelligence (Multi-user edition)
-Replace your existing app/main.py with this file entirely.
-
-Changes from the original:
-- Auth gate via auth_page.render_auth_page()
-- All CSV reads/writes replaced with database calls
-- Goals saved per-user in user_goals table
-- Session state tracks logged-in user
 """
 
 import streamlit as st
 import pandas as pd
 from datetime import date
+import sys
+from pathlib import Path
+
+# ── Add project root to path ──────────────────────────────────────────────────
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 # ── Bootstrap DB before anything else ────────────────────────────────────────
 from src.database import init_db, get_transactions_df, add_transaction, import_csv_for_user, get_goals, save_goals
-init_db()
-
-# ── Auth gate ─────────────────────────────────────────────────────────────────
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
 from app.auth_page import render_auth_page
+
+init_db()
 
 st.set_page_config(
     page_title="Personal Finance Intelligence",
@@ -193,7 +188,7 @@ with tab_import:
 
     if uploaded:
         # Save to a temp path then bulk-import
-        import tempfile, os
+        import tempfile
         with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
             tmp.write(uploaded.getvalue())
             tmp_path = tmp.name
@@ -209,4 +204,5 @@ with tab_import:
         except Exception as e:
             st.error(f"Could not read CSV: {e}")
         finally:
+            import os
             os.unlink(tmp_path)
