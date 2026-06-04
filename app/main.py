@@ -7,6 +7,7 @@ import pandas as pd
 from datetime import date
 import sys
 from pathlib import Path
+import plotly.express as px
 
 # ── Add project root to path ──────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -39,6 +40,30 @@ with st.sidebar:
         st.session_state.clear()
         st.rerun()
     st.divider()
+
+# ── Plotly styling with enhanced contrast ────────────────────────────────────
+# Background: darker for better white text contrast
+_PLOT_PANEL_BG = "#1a1f2e"
+_PLOT_PANEL_BORDER = "#4a7c99"
+_PLOT_HOVERLABEL = dict(
+    bgcolor=_PLOT_PANEL_BG,
+    bordercolor=_PLOT_PANEL_BORDER,
+    borderwidth=2,
+    align="left",
+    font=dict(color="#ffffff", size=13, family="Arial, sans-serif"),
+    namelength=-1,  # Show full text in hover
+)
+_PLOT_LEGEND = dict(
+    bgcolor=_PLOT_PANEL_BG,
+    bordercolor=_PLOT_PANEL_BORDER,
+    borderwidth=2,
+    font=dict(color="#e8f0f8", size=11, family="Arial, sans-serif"),
+    tracegroupgap=8,
+    x=0.02,
+    y=0.98,
+    xanchor="left",
+    yanchor="top",
+)
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=30, show_spinner=False)
@@ -141,16 +166,81 @@ with tab_reco:
             else:
                 st.info("No recommendations available yet.")
 
-        # ── Category breakdown chart ────────────────────────────────────────
+        # ── Spending Deep Dive - Plotly Charts ──────────────────────────────
         st.divider()
-        st.subheader("Spending by Category")
-        cat_data_dict = summary.get("category_shares", {})
-        if cat_data_dict:
-            cat_data = pd.DataFrame(list(cat_data_dict.items()), columns=["category", "amount"])
-            cat_data = cat_data.sort_values("amount", ascending=False)
-            st.bar_chart(cat_data.set_index("category")["amount"])
+        st.markdown("#### 📈 Spending Deep Dive")
+        
+        category_data = summary.get("category_shares", {})
+        
+        if category_data:
+            # 1. Donut Chart - Spending Distribution
+            fig_pie = px.pie(
+                names=list(category_data.keys()),
+                values=list(category_data.values()),
+                hole=0.4,
+                title=f"Spending Distribution: {chosen}",
+                template="plotly_dark"
+            )
+            fig_pie.update_traces(
+                textposition="inside",
+                textfont=dict(size=12, color="#ffffff"),
+                hovertemplate="<b>%{label}</b><br>₹%{value:.0f} (%{percent})<extra></extra>"
+            )
+            fig_pie.update_layout(
+                hoverlabel=_PLOT_HOVERLABEL,
+                legend=_PLOT_LEGEND,
+                font=dict(color="#e8f0f8", size=12),
+                title_font=dict(size=16, color="#e8f0f8"),
+                paper_bgcolor="#0E1117",
+                plot_bgcolor="#0E1117",
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+            # 2. Line Chart - Cumulative Spending Trend
+            if not month_df.empty:
+                burn_df = month_df.sort_values("date")
+                fig_burn = px.line(
+                    burn_df,
+                    x="date",
+                    y="cumulative_spent",
+                    title=f"Cumulative Spending Trend: {chosen}",
+                    labels={"cumulative_spent": "Total Spent (₹)", "date": "Date"},
+                    template="plotly_dark"
+                )
+                fig_burn.update_traces(
+                    line=dict(color="#4a7c99", width=3),
+                    hovertemplate="<b>Date:</b> %{x|%d-%b-%Y}<br><b>Cumulative:</b> ₹%{y:.0f}<extra></extra>"
+                )
+                fig_burn.add_hline(
+                    y=summary.get("total_income", 0),
+                    line_dash="dash",
+                    line_color="#ff6b6b",
+                    line_width=2,
+                    annotation_text="Budget Ceiling",
+                    annotation_position="right",
+                    annotation_font=dict(color="#ff6b6b", size=11),
+                )
+                fig_burn.update_layout(
+                    hoverlabel=_PLOT_HOVERLABEL,
+                    legend=_PLOT_LEGEND,
+                    font=dict(color="#e8f0f8", size=11),
+                    title_font=dict(size=16, color="#e8f0f8"),
+                    xaxis=dict(
+                        tickfont=dict(color="#a0a9b8", size=10),
+                        title_font=dict(color="#e8f0f8", size=12),
+                        gridcolor="#2d3748",
+                    ),
+                    yaxis=dict(
+                        tickfont=dict(color="#a0a9b8", size=10),
+                        title_font=dict(color="#e8f0f8", size=12),
+                        gridcolor="#2d3748",
+                    ),
+                    paper_bgcolor="#0E1117",
+                    plot_bgcolor="#0E1117",
+                )
+                st.plotly_chart(fig_burn, use_container_width=True)
         else:
-            st.info("No category data available.")
+            st.info("No category data available for charts.")
 
 
 # ── Tab 3: Daily Log ──────────────────────────────────────────────────────────
